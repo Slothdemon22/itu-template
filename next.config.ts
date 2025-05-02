@@ -6,6 +6,11 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  images:
+  {
+    domains:["dwrejzaczknpsnhwswid.supabase.co"]
+  }
+  
 }
 
 module.exports = nextConfig

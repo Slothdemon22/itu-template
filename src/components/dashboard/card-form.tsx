@@ -4,18 +4,32 @@ import type React from "react"
 import { useState, useCallback } from "react"
 import { useDropzone } from "react-dropzone"
 import { supabase } from "@/lib/db"
-import { X, ImageIcon, Loader2, Upload, FileText, Type } from "lucide-react"
+import {
+  X,
+  ImageIcon,
+  Loader2,
+  Upload,
+  FileText,
+  Type,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { toast } from "sonner"
 
 interface FormData {
   title: string
   description: string
-  image: File | null
+  image: string // string URL for Supabase
 }
 
 export default function UserCardForm({
@@ -27,21 +41,22 @@ export default function UserCardForm({
   submitButtonText?: string
   onSubmit?: (data: FormData) => void
 }) {
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<Omit<FormData, "image">>({
     title: "",
     description: "",
-    image: null,
   })
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
-      setFormData((prev) => ({ ...prev, image: file }))
+      setImageFile(file)
       const objectUrl = URL.createObjectURL(file)
       setPreview(objectUrl)
 
+      // Cleanup function
       return () => URL.revokeObjectURL(objectUrl)
     }
   }, [])
@@ -55,7 +70,7 @@ export default function UserCardForm({
   })
 
   const removeImage = () => {
-    setFormData((prev) => ({ ...prev, image: null }))
+    setImageFile(null)
     if (preview) {
       URL.revokeObjectURL(preview)
       setPreview(null)
@@ -64,38 +79,50 @@ export default function UserCardForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.image) {
+
+    if (!imageFile) {
       toast.error("Please select an image before submitting.")
       return
     }
 
     try {
       setLoading(true)
-      const file = formData.image
-      const filePath = `${Math.random() * 10}-${file.name}`
 
-      const { data, error } = await supabase.storage.from("test").upload(filePath, file)
-      if (error) {
-        toast.error("Failed to upload image.")
-        console.error("Upload error:", error.message)
-        return
+      // Generate a unique filename with timestamp and random string
+      const fileExtension = imageFile.name.split('.').pop()
+      const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExtension}`
+
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("test")
+        .upload(uniqueFileName, imageFile, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) {
+        throw uploadError
       }
 
-      const { data: urlData } = supabase.storage.from("test").getPublicUrl(filePath)
-      if (!urlData?.publicUrl) {
-        toast.error("Could not retrieve public URL.")
-        return
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("test")
+        .getPublicUrl(uploadData.path)
+
+      if (!publicUrl) {
+        throw new Error("Could not generate public URL")
       }
 
+      // Call the onSubmit callback with form data
       onSubmit?.({
         ...formData,
-        image: file,
+        image: publicUrl,
       })
 
       toast.success("User card submitted successfully!")
-    } catch (err) {
-      toast.error("An unexpected error occurred.")
-      console.error("Unexpected error:", err)
+    } catch (error) {
+      console.error("Error uploading image:", error)
+      toast.error("Failed to upload image. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -104,7 +131,7 @@ export default function UserCardForm({
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl bg-gradient-to-b from-background to-background/80 border-opacity-50 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-background/0 pointer-events-none" />
-      
+
       <CardHeader className="pb-6">
         <CardTitle className="text-2xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
           {title}
@@ -113,7 +140,7 @@ export default function UserCardForm({
           Create your custom profile card with an image and description
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
@@ -126,7 +153,6 @@ export default function UserCardForm({
               value={formData.title}
               onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
               required
-              className="transition-all focus-visible:ring-primary focus-visible:ring-offset-2"
               placeholder="Enter a title for your card"
             />
           </div>
@@ -141,7 +167,7 @@ export default function UserCardForm({
               value={formData.description}
               onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
               required
-              className="min-h-24 transition-all focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="min-h-24"
               placeholder="Tell us a bit about yourself or this card"
             />
           </div>
@@ -151,7 +177,7 @@ export default function UserCardForm({
               <Upload className="h-4 w-4 text-primary" />
               Image
             </Label>
-            
+
             {!preview ? (
               <div
                 {...getRootProps()}
@@ -175,9 +201,9 @@ export default function UserCardForm({
             ) : (
               <div className="relative rounded-lg overflow-hidden border border-muted shadow-md group">
                 <img
-                  src={preview || "/placeholder.svg"}
+                  src={preview}
                   alt="Preview"
-                  className="w-full h-auto max-h-[250px] object-cover transition-opacity group-hover:opacity-90"
+                  className="w-full h-auto max-h-[250px] object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <Button
@@ -194,13 +220,15 @@ export default function UserCardForm({
           </div>
 
           <CardFooter className="px-0 pt-6 pb-0">
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-md transition-all py-6" 
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-md py-6"
               disabled={loading}
             >
               {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-              <span className="font-semibold text-md">{loading ? "Submitting..." : submitButtonText}</span>
+              <span className="font-semibold text-md">
+                {loading ? "Submitting..." : submitButtonText}
+              </span>
             </Button>
           </CardFooter>
         </form>

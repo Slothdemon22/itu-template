@@ -1,7 +1,7 @@
 'use client'
 
 import { useUser } from "@clerk/nextjs";
-import { Card, CardContent, CardHeader } from "@/components/ui/card"; // if you're using shadcn/ui
+
 
 export default function Profile() {
   const { isSignedIn, user, isLoaded } = useUser();
