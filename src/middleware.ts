@@ -13,6 +13,7 @@ const isPublicRoute = createRouteMatcher([
 const isPrivateRoute = createRouteMatcher([
   '/profile(.*)',
   '/payment(.*)',
+  "/chat(.*)",
 
 ]);
 

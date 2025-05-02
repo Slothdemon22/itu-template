@@ -54,7 +54,7 @@ export default function TablesPage() {
       return imageData.path.startsWith("./") ? imageData.path.substring(2) : imageData.path
     } catch (e) {
       console.error("Error parsing image path:", e)
-      return "/placeholder.svg?height=200&width=200"
+      return "/placeholder.svg"
     }
   }
 
@@ -88,51 +88,92 @@ export default function TablesPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-8">Table Entries</h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Table Entries</h1>
+        <p className="text-muted-foreground mt-2">
+          Showing {data.length} {data.length === 1 ? "entry" : "entries"}
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {data.map((item) => (
-          <Card key={item.id} className="overflow-hidden">
-            <div className="relative h-48 w-full">
+          <Card key={item.id} className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+            <div className="relative aspect-video w-full">
               <Image
                 src={item.image || "/placeholder.svg"}
                 alt={item.title}
                 fill
                 className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 onError={(e) => {
-                  // Fallback if image fails to load
-                  e.currentTarget.src = "/placeholder.svg?height=200&width=200"
+                  e.currentTarget.src = "/placeholder.svg"
                 }}
               />
+              <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
+              <Badge 
+                variant="secondary" 
+                className="absolute top-3 right-3 bg-background/90 backdrop-blur-sm"
+              >
+                #{item.id}
+              </Badge>
             </div>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="line-clamp-1">{item.title}</CardTitle>
-                <Badge variant="outline">ID: {item.id}</Badge>
-              </div>
+            
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl line-clamp-1">{item.title}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-2 line-clamp-2">{item.description}</p>
-              <div className="text-xs text-muted-foreground mt-4">
-                <p>Created: {formatDate(item.created_at)}</p>
-                <p className="truncate mt-1">User: {item.clerkID}</p>
-              </div>
+            
+            <CardContent className="pb-4">
+              <p className="text-muted-foreground line-clamp-3">{item.description}</p>
             </CardContent>
-            <CardFooter className="border-t pt-4">
-              <div className="text-xs text-muted-foreground">
-                <span className="font-medium">Image:</span> {parseImagePath(item.image)}
-              </div>
+            
+            <CardFooter className="flex justify-between items-center text-sm text-muted-foreground pt-0">
+              <span className="flex items-center gap-1">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                {formatDate(item.created_at)}
+              </span>
             </CardFooter>
           </Card>
         ))}
       </div>
 
       {data.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No entries found</p>
+        <div className="text-center py-12 border rounded-lg">
+          <div className="mx-auto max-w-md space-y-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mx-auto h-12 w-12 text-muted-foreground"
+            >
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+            <h3 className="text-lg font-medium">No entries found</h3>
+            <p className="text-sm text-muted-foreground">
+              Create your first entry to get started
+            </p>
+          </div>
         </div>
       )}
     </div>
   )
 }
-
